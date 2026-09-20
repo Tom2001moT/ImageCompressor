@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <script type="module" src="/@vite/client"></script>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Compressor</title>
+  <meta name="description" content="Free client-side bulk image compressor. Target exact file size in KB, adjust quality percentage, choose format (JPEG, WebP, PNG), preview thumbnails, and export as ZIP.">
+  <meta property="og:title" content="Image Compressor">
+  <meta property="og:description" content="Free client-side bulk image compressor. Target exact file size in KB, adjust quality percentage, choose format (JPEG, WebP, PNG), preview thumbnails, and export as ZIP.">
+  <meta property="og:type" content="website">
+
+  <!-- JSZip Library for Bulk Downloading -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      line-height: 1.5;
+      padding: 20px 16px 60px;
+    }
+
+    /* Top Bar */
+    .ic-topbar {
+      max-width: 880px;
+      margin: 0 auto 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      background: #ffffff;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .ic-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ic-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 9999px;
+    }
+
+    .ic-topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ic-btn-secondary {
+      background: #ffffff;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .ic-btn-secondary:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+
+    /* Main Container */
+    .ic-main-wrapper {
+      max-width: 880px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 36px 32px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    }
+
+    .ic-title {
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #0f172a;
+      text-align: center;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .ic-subtitle {
+      text-align: center;
+      font-size: 0.95rem;
+      color: #64748b;
+      margin-bottom: 28px;
+      max-width: 620px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Dropzone Area */
+    .ic-dropzone-area {
+      border: 2px dashed #cbd5e1;
+      border-radius: 14px;
+      padding: 44px 24px;
+      text-align: center;
+      background-color: #f8fafc;
+      transition: all 0.25s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .ic-dropzone-area:hover,
+    .ic-dropzone-area.dragover {
+      border-color: #1A73E8;
+      background-color: #eff6ff;
+    }
+
+    .ic-icon-box {
+      width: 64px;
+      height: 64px;
+      background-color: #e8f0fe;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      color: #1A73E8;
+      transition: transform 0.2s ease;
+    }
+
+    .ic-dropzone-area:hover .ic-icon-box {
+      transform: scale(1.06);
+    }
+
+    .ic-icon-box svg {
+      width: 32px;
+      height: 32px;
+      fill: currentColor;
+    }
+
+    .ic-primary-text {
+      font-size: 1.15rem;
+      color: #0f172a;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .ic-browse-link {
+      color: #1A73E8;
+      cursor: pointer;
+      text-decoration: underline;
+      font-weight: 600;
+    }
+
+    .ic-browse-link:hover {
+      color: #1557b0;
+    }
+
+    .ic-secondary-text {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 18px;
+    }
+
+    .ic-format-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .ic-format-tags span {
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      color: #64748b;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 4px 14px;
+      border-radius: 20px;
+    }
+
+    /* Controls Panel */
+    .ic-controls-panel {
+      margin-top: 24px;
+      padding: 24px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+    }
+
+    /* Mode Switcher Tabs */
+    .ic-mode-switcher-container {
+      margin-bottom: 22px;
+    }
+
+    .ic-mode-switcher-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .ic-mode-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: #e2e8f0;
+      padding: 4px;
+      border-radius: 10px;
+    }
+
+    .ic-mode-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .ic-mode-tab.active {
+      background: #ffffff;
+      color: #1A73E8;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+    }
+
+    .ic-mode-tab svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .ic-control-section {
+      margin-bottom: 22px;
+    }
+
+    .ic-control-section:last-child {
+      margin-bottom: 0;
+      padding-top: 18px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .ic-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .ic-control-label {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ic-label-hint {
+      font-size: 0.78rem;
+      color: #64748b;
+    }
+
+    /* Target Size in KB Inputs */
+    .ic-target-size-box {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-top: 8px;
+    }
+
+    .ic-target-input-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .ic-input-with-unit {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      max-width: 220px;
+    }
+
+    .ic-input-with-unit input {
+      width: 100%;
+      padding: 10px 48px 10px 14px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #0f172a;
+      border: 2px solid #cbd5e1;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .ic-input-with-unit input:focus {
+      border-color: #1A73E8;
+    }
+
+    .ic-unit-badge {
+      position: absolute;
+      right: 12px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #1A73E8;
+      background: #eff6ff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    .ic-tolerance-select-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: #475569;
+    }
+
+    .ic-target-presets {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px dashed #e2e8f0;
+    }
+
+    .ic-target-presets span {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    .ic-target-preset-btn {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .ic-target-preset-btn:hover {
+      border-color: #1A73E8;
+      color: #1A73E8;
+      background: #eff6ff;
+    }
+
+    .ic-target-preset-btn.active {
+      background: #1A73E8;
+      color: #ffffff;
+      border-color: #1A73E8;
+    }
+
+    .ic-target-hint-text {
+      font-size: 0.8rem;
+      color: #166534;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Format Selection Options */
+    .ic-format-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .ic-format-card {
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .ic-format-card:hover {
+      border-color: #94a3b8;
+    }
+
+    .ic-format-card.active {
+      border-color: #1A73E8;
+      background-color: #eff6ff;
+      box-shadow: 0 0 0 1px #1A73E8;
+    }
+
+    .ic-format-card input[type="radio"] {
+      margin-top: 3px;
+      accent-color: #1A73E8;
+      cursor: pointer;
+    }
+
+    .ic-format-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #0f172a;
+      display: block;
+    }
+
+    .ic-format-desc {
+      font-size: 0.72rem;
+      color: #64748b;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .ic-dropdown-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: #475569;
+    }
+
+    .ic-select {
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      font-size: 0.82rem;
+      color: #0f172a;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .ic-select:focus {
+      border-color: #1A73E8;
+    }
+
+    /* Quality Slider */
+    .ic-quality-slider-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 10px 0 8px;
+    }
+
+    .ic-slider {
+      flex: 1;
+      height: 6px;
+      border-radius: 4px;
+      background: #cbd5e1;
+      outline: none;
+      accent-color: #1A73E8;
+      cursor: pointer;
+    }
+
+    .ic-quality-badge {
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: #e8f0fe;
+      color: #1A73E8;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      min-width: 48px;
+      text-align: center;
+    }
+
+    .ic-presets {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.76rem;
+      color: #64748b;
+      margin-top: 6px;
+    }
+
+    .ic-preset-btn {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      padding: 3px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.74rem;
+      transition: all 0.15s;
+    }
+
+    .ic-preset-btn:hover {
+      border-color: #1A73E8;
+      color: #1A73E8;
+    }
+
+    .ic-preset-btn.active {
+      background: #1A73E8;
+      color: #ffffff;
+      border-color: #1A73E8;
+    }
+
+    /* Selected Items Queue (Before Compression) */
+    .ic-items-container {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .ic-items-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      font-size: 0.88rem;
+    }
+
+    .ic-items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 260px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .ic-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.82rem;
+    }
+
+    .ic-item-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .ic-item-thumb {
+      width: 42px;
+      height: 42px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+      flex-shrink: 0;
+    }
+
+    .ic-item-name {
+      font-weight: 600;
+      color: #0f172a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ic-item-size {
+      color: #64748b;
+      font-size: 0.75rem;
+      margin-top: 2px;
+    }
+
+    .ic-item-remove {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 6px;
+      font-size: 1rem;
+      line-height: 1;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+
+    .ic-item-remove:hover {
+      color: #ef4444;
+      background-color: #fee2e2;
+    }
+
+    /* Action Panel */
+    .ic-action-panel {
+      margin-top: 25px;
+      display: none;
+      text-align: center;
+      background: #f8fafc;
+      padding: 24px;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .ic-status-msg {
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+      color: #334155;
+      font-weight: 500;
+    }
+
+    .ic-btn-primary {
+      background: #1A73E8;
+      color: #ffffff;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 7px;
+      font-size: 0.96rem;
+      cursor: pointer;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 2px 6px rgba(26, 115, 232, 0.25);
+    }
+
+    .ic-btn-primary:hover {
+      background: #1557b0;
+    }
+
+    .ic-btn-primary:active {
+      transform: scale(0.98);
+    }
+
+    .ic-btn-primary:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .ic-progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 14px;
+      display: none;
+    }
+
+    .ic-progress-bar {
+      height: 100%;
+      background: #1A73E8;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    /* POST-COMPRESSION THUMBNAILS SECTION (Before ZIP Creation) */
+    .ic-compressed-section {
+      margin-top: 28px;
+      display: none;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 14px;
+      padding: 24px;
+    }
+
+    .ic-compressed-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid #dcfce7;
+      margin-bottom: 20px;
+    }
+
+    .ic-compressed-title-group h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #14532d;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ic-compressed-title-group p {
+      font-size: 0.8rem;
+      color: #166534;
+      margin-top: 3px;
+    }
+
+    .ic-stats-pill {
+      background: #ffffff;
+      border: 1px solid #86efac;
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-align: right;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    .ic-stats-sizes {
+      font-size: 0.76rem;
+      color: #475569;
+    }
+
+    .ic-stats-saved {
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: #15803d;
+    }
+
+    /* Thumbnail Grid */
+    .ic-thumb-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 16px;
+      max-height: 520px;
+      overflow-y: auto;
+      padding: 4px;
+      margin-bottom: 22px;
+    }
+
+    .ic-thumb-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .ic-thumb-card:hover {
+      border-color: #93c5fd;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+    }
+
+    .ic-thumb-img-wrapper {
+      position: relative;
+      height: 140px;
+      background: #f8fafc;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #f1f5f9;
+      cursor: pointer;
+    }
+
+    .ic-thumb-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .ic-thumb-zoom-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .ic-thumb-img-wrapper:hover .ic-thumb-zoom-overlay {
+      opacity: 1;
+    }
+
+    .ic-thumb-details {
+      margin-top: 10px;
+    }
+
+    .ic-thumb-name {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #0f172a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: block;
+    }
+
+    .ic-thumb-metrics {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 0.74rem;
+    }
+
+    .ic-size-orig {
+      color: #64748b;
+    }
+
+    .ic-size-comp {
+      font-weight: 700;
+      color: #15803d;
+    }
+
+    .ic-thumb-target-row {
+      margin-top: 6px;
+      padding: 4px 8px;
+      background: #f8fafc;
+      border-radius: 5px;
+      border: 1px solid #e2e8f0;
+      font-size: 0.72rem;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ic-target-match-tag {
+      font-weight: 700;
+      color: #16a34a;
+    }
+
+    .ic-thumb-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .ic-badge-saving {
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: #dcfce7;
+      color: #15803d;
+      padding: 2px 8px;
+      border-radius: 9999px;
+    }
+
+    .ic-btn-download-single {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1A73E8;
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .ic-btn-download-single:hover {
+      background: #1A73E8;
+      color: #ffffff;
+      border-color: #1A73E8;
+    }
+
+    /* Bottom Action Bar for ZIP Creation */
+    .ic-zip-action-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 1px solid #dcfce7;
+    }
+
+    .ic-btn-recompress {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+
+    .ic-btn-recompress:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+
+    .ic-btn-zip {
+      background: #16a34a;
+      color: #ffffff;
+      border: none;
+      padding: 12px 28px;
+      border-radius: 7px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
+      transition: all 0.2s;
+    }
+
+    .ic-btn-zip:hover {
+      background: #15803d;
+    }
+
+    .ic-btn-zip:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Fullscreen Modal */
+    .ic-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+
+    .ic-modal-content {
+      background: #ffffff;
+      border-radius: 12px;
+      max-width: 800px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .ic-modal-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .ic-modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      line-height: 1;
+      color: #64748b;
+      cursor: pointer;
+    }
+
+    .ic-modal-body {
+      padding: 16px;
+      background: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      flex: 1;
+    }
+
+    .ic-modal-img {
+      max-width: 100%;
+      max-height: 65vh;
+      object-fit: contain;
+    }
+
+    /* Modal for Deploy Instructions / Raw Code */
+    .ic-code-modal-content {
+      background: #ffffff;
+      border-radius: 12px;
+      max-width: 720px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 24px;
+    }
+
+    .ic-code-textarea {
+      width: 100%;
+      height: 280px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px;
+      margin: 12px 0;
+      resize: none;
+      background: #f8fafc;
+      color: #334155;
+    }
+
+    /* Footer */
+    .ic-footer {
+      max-width: 880px;
+      margin: 24px auto 0;
+      text-align: center;
+      font-size: 0.78rem;
+      color: #64748b;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 10px 8px 40px;
+      }
+      .ic-main-wrapper {
+        padding: 20px 16px;
+      }
+      .ic-title {
+        font-size: 1.7rem;
+      }
+      .ic-dropzone-area {
+        padding: 35px 14px;
+      }
+      .ic-mode-tabs {
+        grid-template-columns: 1fr;
+      }
+      .ic-zip-action-bar {
+        flex-direction: column;
+      }
+      .ic-btn-zip, .ic-btn-recompress {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+<script src="/_aistudio-iframe.js?v=2c34bde1"></script><script src="https://cdn.jsdelivr.net/npm/html2canvas-pro@2.0.4"></script><style>.aistudio-hover-highlight { box-shadow: inset 0 0 0 0.5px white, inset 0 0 0 1.5px rgba(128,128,128,0.6) !important; }.aistudio-active-highlight { outline: 2px solid #87a9ff !important; outline-offset: -2px !important; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.3), inset 0 0 0 0.5px rgba(0,0,0,0.3) !important; }.aistudio-generating-blur { filter: blur(5px) grayscale(100%) brightness(28%) !important; transition: filter 0.3s ease; }#aistudio-focus-mode-tag { position: absolute; display: none; align-items: center; gap: 4px; background: #87a9ff; border-radius: 12px; z-index: 10000; padding: 8px; color: #32302c; font-family: Inter, sans-serif; font-size: 14px; font-style: normal; font-weight: 500; line-height: 21px; pointer-events: none; }#aistudio-hover-mode-tag { position: absolute; display: none; align-items: center; gap: 4px; background: rgba(128,128,128,0.6); border-radius: 12px; z-index: 10000; padding: 8px; color: white; font-family: Inter, sans-serif; font-size: 14px; font-style: normal; font-weight: 500; line-height: 21px; pointer-events: none; }.aistudio-img-icon { display: none; vertical-align: middle; pointer-events: auto; cursor: pointer; }.aistudio-img-icon.visible { display: inline-flex; }#aistudio-focus-mode-tag .aistudio-img-icon { position: relative; width: 26px; height: 26px; background: #32302c; border-radius: 6px; margin: -4px -4px -4px 0; }#aistudio-focus-mode-tag .aistudio-img-icon::before { content: ""; position: absolute; top: 4px; left: 4px; width: 18px; height: 18px; background-color: white; -webkit-mask-image: url("https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/edit_fix_auto/default/24px.svg"); -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; mask-image: url("https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/edit_fix_auto/default/24px.svg"); mask-size: contain; mask-repeat: no-repeat; }#aistudio-hover-mode-tag .aistudio-img-icon { position: relative; width: 18px; height: 18px; margin-left: 4px; }#aistudio-hover-mode-tag .aistudio-img-icon::before { content: ""; position: absolute; top: 0; left: 0; width: 18px; height: 18px; background-color: white; -webkit-mask-image: url("https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/edit_fix_auto/default/24px.svg"); -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; mask-image: url("https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/edit_fix_auto/default/24px.svg"); mask-size: contain; mask-repeat: no-repeat; }#aistudio-focus-mode-tag .aistudio-img-icon:hover, #aistudio-hover-mode-tag .aistudio-img-icon:hover { background: #424242 !important; }#aistudio-focus-mode-tag .aistudio-img-icon:active, #aistudio-hover-mode-tag .aistudio-img-icon:active { background: #393f51 !important; }</style></head>
+<body>
+
+  <!-- Top Bar for Standalone / GitHub Deployment -->
+  <div class="ic-topbar">
+    <div class="ic-topbar-left">
+      <span class="ic-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path>
+        </svg>
+        Single-File HTML • Zero Server Dependencies
+      </span>
+    </div>
+
+    <div class="ic-topbar-actions">
+      <button class="ic-btn-secondary" id="icDownloadHtmlBtn" title="Download index.html for direct deployment">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path>
+        </svg>
+        Download index.html
+      </button>
+
+      <button class="ic-btn-secondary" id="icCopyCodeBtn" title="Copy raw single-file HTML code">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"></path>
+        </svg>
+        Copy HTML Code
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Application Wrapper -->
+  <div class="ic-main-wrapper" id="icMainContainer">
+    <h1 class="ic-title" id="icAppTitle">Image Compressor</h1>
+    <p class="ic-subtitle">
+      Compress your photos in bulk directly inside your browser. Select an exact file size in KB or adjust quality percentage, preview thumbnail results, and download as a ZIP archive.
+    </p>
+
+    <!-- Dropzone Area -->
+    <div class="ic-dropzone-area" id="icDropzone">
+      <input type="file" id="icFileInput" multiple="" accept="image/jpeg, image/png, image/webp, image/gif, image/bmp, image/tiff, image/avif" style="display: none;">
+
+      <div class="ic-icon-box" id="icIconBox">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5-7l-3 3.72L9 13l-3 4h14l-4-5z"></path>
+        </svg>
+      </div>
+
+      <div class="ic-primary-text" id="icPrimaryText">
+        Drop images here or <span class="ic-browse-link" id="icBrowseBtn">click to browse</span>
+      </div>
+
+      <div class="ic-secondary-text" id="icSecondaryText">
+        Multiple images supported — preview compressed results &amp; download as ZIP
+      </div>
+
+      <div class="ic-format-tags" id="icFormatTags">
+        <span>JPEG</span>
+        <span>PNG</span>
+        <span>WebP</span>
+        <span>GIF</span>
+        <span>BMP</span>
+        <span>TIFF</span>
+        <span>AVIF</span>
+      </div>
+    </div>
+
+    <!-- Controls Panel: Mode Switcher, Target KB Size, Quality Slider, and Format -->
+    <div class="ic-controls-panel" id="icControlsPanel">
+      
+      <!-- Compression Mode Switcher -->
+      <div class="ic-mode-switcher-container">
+        <span class="ic-mode-switcher-label">Choose Compression Mode:</span>
+        <div class="ic-mode-tabs">
+          <button type="button" class="ic-mode-tab active" id="icTabTargetKb" data-mode="target-kb">
+            <svg viewBox="0 0 24 24">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H9V5h6v2z"></path>
+            </svg>
+            Target Size in KB (Exact Size)
+          </button>
+
+          <button type="button" class="ic-mode-tab" id="icTabQuality" data-mode="quality">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"></path>
+            </svg>
+            Quality Slider (0 - 100%)
+          </button>
+        </div>
+      </div>
+
+      <!-- Option 1: Target Size in KB Section (User Entered Size) -->
+      <div class="ic-control-section" id="icTargetKbSection">
+        <div class="ic-label-row">
+          <label for="icTargetKbInput" class="ic-control-label">
+            Target Compressed File Size:
+          </label>
+          <span class="ic-label-hint">Algorithm dynamically balances quality &amp; resolution to match this size</span>
+        </div>
+
+        <div class="ic-target-size-box">
+          <div class="ic-target-input-row">
+            <div class="ic-input-with-unit">
+              <input type="number" id="icTargetKbInput" min="5" max="50000" step="5" value="100" placeholder="e.g. 100">
+              <span class="ic-unit-badge">KB</span>
+            </div>
+
+            <div class="ic-tolerance-select-box">
+              <span>Optimization:</span>
+              <select id="icToleranceSelect" class="ic-select">
+                <option value="strict" selected="">Strict Max (≤ Target KB)</option>
+                <option value="exact">Exact Target Match (±3%)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Quick Presets for Common Requirements -->
+          <div class="ic-target-presets">
+            <span>Popular Presets:</span>
+            <button type="button" class="ic-target-preset-btn" data-kb="20">20 KB (ID/Govt)</button>
+            <button type="button" class="ic-target-preset-btn" data-kb="50">50 KB (Passport/Web)</button>
+            <button type="button" class="ic-target-preset-btn active" data-kb="100">100 KB (Recommended)</button>
+            <button type="button" class="ic-target-preset-btn" data-kb="200">200 KB (Email/Social)</button>
+            <button type="button" class="ic-target-preset-btn" data-kb="500">500 KB (High Res)</button>
+            <button type="button" class="ic-target-preset-btn" data-kb="1024">1 MB (Archival)</button>
+          </div>
+
+          <div class="ic-target-hint-text" id="icTargetHintBanner">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path>
+            </svg>
+            <span id="icTargetSummaryText">Each image will be optimized to strictly stay ≤ <strong>100 KB</strong>.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Option 2: Quality Slider (0 to 100) (Displayed when Quality mode is selected) -->
+      <div class="ic-control-section" id="icQualitySection" style="display: none;">
+        <div class="ic-label-row">
+          <label for="icQualitySlider" class="ic-control-label">
+            Compression Quality:
+            <span class="ic-quality-badge" id="icQualityVal">70%</span>
+          </label>
+          <span class="ic-label-hint" id="icQualityHint">Balanced (Recommended)</span>
+        </div>
+
+        <div class="ic-quality-slider-container">
+          <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">0</span>
+          <input type="range" id="icQualitySlider" class="ic-slider" min="0" max="100" step="1" value="70">
+          <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">100</span>
+        </div>
+
+        <div class="ic-presets">
+          <span>Presets:</span>
+          <button type="button" class="ic-preset-btn" data-val="25">Low (25%)</button>
+          <button type="button" class="ic-preset-btn" data-val="50">Medium (50%)</button>
+          <button type="button" class="ic-preset-btn active" data-val="70">Balanced (70%)</button>
+          <button type="button" class="ic-preset-btn" data-val="85">High (85%)</button>
+          <button type="button" class="ic-preset-btn" data-val="100">Max (100%)</button>
+        </div>
+      </div>
+
+      <!-- Output Format Selection -->
+      <div class="ic-control-section">
+        <div class="ic-label-row">
+          <label class="ic-control-label">
+            Choose Output Format:
+          </label>
+          <span class="ic-label-hint" id="icFormatHint">Standard photo compatibility (.jpg)</span>
+        </div>
+
+        <div class="ic-format-grid" id="icFormatGrid">
+          <label class="ic-format-card active" data-format="image/jpeg">
+            <input type="radio" name="icFormat" value="image/jpeg" checked="">
+            <div>
+              <span class="ic-format-name">JPEG (.jpg)</span>
+              <span class="ic-format-desc">Best for target KB sizing</span>
+            </div>
+          </label>
+
+          <label class="ic-format-card" data-format="image/webp">
+            <input type="radio" name="icFormat" value="image/webp">
+            <div>
+              <span class="ic-format-name">WebP (.webp)</span>
+              <span class="ic-format-desc">Highest compression ratio</span>
+            </div>
+          </label>
+
+          <label class="ic-format-card" data-format="image/png">
+            <input type="radio" name="icFormat" value="image/png">
+            <div>
+              <span class="ic-format-name">PNG (.png)</span>
+              <span class="ic-format-desc">Lossless graphics (auto-scale)</span>
+            </div>
+          </label>
+        </div>
+
+        <!-- Optional Quick Dropdown Alternative -->
+        <div class="ic-dropdown-row">
+          <span>Or select via dropdown:</span>
+          <select id="icFormatSelect" class="ic-select">
+            <option value="image/jpeg" selected="">JPEG (.jpg)</option>
+            <option value="image/webp">WebP (.webp)</option>
+            <option value="image/png">PNG (.png)</option>
+          </select>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Selected Images Queue (Before Compression) -->
+    <div class="ic-items-container" id="icItemsContainer">
+      <div class="ic-items-header">
+        <strong id="icQueueCount">Selected Images (0)</strong>
+        <button type="button" id="icClearListBtn" class="ic-btn-secondary" style="padding: 4px 10px; font-size: 0.76rem; color: #dc2626;">
+          Clear All
+        </button>
+      </div>
+      <div class="ic-items-list" id="icItemsList"></div>
+    </div>
+
+    <!-- Action Panel (Compress Images) -->
+    <div class="ic-action-panel" id="icActionPanel">
+      <div id="icStatusText" class="ic-status-msg">0 images selected</div>
+      <button class="ic-btn-primary" id="icCompressBtn">Compress to 100 KB</button>
+
+      <div class="ic-progress-bar-container" id="icProgressBarContainer">
+        <div class="ic-progress-bar" id="icProgressBar"></div>
+      </div>
+    </div>
+
+    <!-- Post-Compression Thumbnail Previews Section (Displayed before ZIP is generated) -->
+    <div class="ic-compressed-section" id="icCompressedSection">
+      <div class="ic-compressed-header">
+        <div class="ic-compressed-title-group">
+          <h3>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#16a34a">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"></path>
+            </svg>
+            Compressed Images Preview (<span id="icCompressedCount">0</span>)
+          </h3>
+          <p>Review original vs. compressed sizes and target match below before proceeding with the ZIP file creation.</p>
+        </div>
+
+        <div class="ic-stats-pill">
+          <div class="ic-stats-sizes" id="icStatsSizes">0 KB → 0 KB</div>
+          <div class="ic-stats-saved" id="icStatsSaved">Saved 0%</div>
+        </div>
+      </div>
+
+      <!-- Thumbnail Previews Grid -->
+      <div class="ic-thumb-grid" id="icThumbGrid"></div>
+
+      <!-- Proceed with ZIP Creation Action Bar -->
+      <div class="ic-zip-action-bar">
+        <button type="button" class="ic-btn-recompress" id="icRecompressBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"></path>
+          </svg>
+          Change Target Size / Settings &amp; Re-compress
+        </button>
+
+        <!-- Button to proceed with ZIP creation -->
+        <button type="button" class="ic-btn-zip" id="icProceedZipBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"></path>
+          </svg>
+          Proceed with ZIP Creation &amp; Download
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="ic-footer">
+    <p>100% Client-Side Image Compressor • Built with HTML5 Canvas &amp; JSZip • Deploy directly to GitHub Pages with a single <code>index.html</code> file</p>
+  </footer>
+
+  <!-- Fullscreen Image Preview Modal -->
+  <div class="ic-modal" id="icImageModal">
+    <div class="ic-modal-content">
+      <div class="ic-modal-header">
+        <span id="icModalTitle">Compressed Image Preview</span>
+        <button type="button" class="ic-modal-close" id="icModalClose">×</button>
+      </div>
+      <div class="ic-modal-body">
+        <img src="" alt="Preview" class="ic-modal-img" id="icModalImg">
+      </div>
+    </div>
+  </div>
+
+  <!-- Deploy Helper Modal -->
+  <div class="ic-modal" id="icCodeModal">
+    <div class="ic-code-modal-content">
+      <div class="ic-modal-header" style="padding: 0 0 12px; margin-bottom: 8px;">
+        <span style="font-size: 1.1rem;">Single-File HTML Code for GitHub</span>
+        <button type="button" class="ic-modal-close" id="icCodeModalClose">×</button>
+      </div>
+      <p style="font-size: 0.82rem; color: #64748b;">
+        Copy this entire code and save it as <code>index.html</code> in your GitHub repository, or enable <strong>GitHub Pages</strong> under repository settings to deploy instantly!
+      </p>
+      <textarea id="icCodeTextarea" class="ic-code-textarea" readonly=""></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button type="button" class="ic-btn-secondary" id="icCopyCodeModalBtn">
+          Copy to Clipboard
+        </button>
+        <button type="button" class="ic-btn-primary" id="icDownloadFromModalBtn">
+          Download index.html
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN JAVASCRIPT (Pure Vanilla JS & JSZip, Zero Build Steps Required) -->
+  <script>
+    (function () {
+      'use strict';
+
+      // State
+      let selectedFiles = []; // Array of File
+      let compressedResults = []; // Array of { originalFile, blob, name, originalSize, compressedSize, url, width, height, targetKb, matchStatus }
+      let isCompressing = false;
+      let isZipping = false;
+      let activeMode = 'target-kb'; // 'target-kb' or 'quality'
+
+      // DOM Elements
+      const dropzone = document.getElementById('icDropzone');
+      const fileInput = document.getElementById('icFileInput');
+      const browseBtn = document.getElementById('icBrowseBtn');
+      const actionPanel = document.getElementById('icActionPanel');
+      const statusText = document.getElementById('icStatusText');
+      const compressBtn = document.getElementById('icCompressBtn');
+      const progressBarContainer = document.getElementById('icProgressBarContainer');
+      const progressBar = document.getElementById('icProgressBar');
+
+      // Mode Switcher Elements
+      const tabTargetKb = document.getElementById('icTabTargetKb');
+      const tabQuality = document.getElementById('icTabQuality');
+      const targetKbSection = document.getElementById('icTargetKbSection');
+      const qualitySection = document.getElementById('icQualitySection');
+
+      // Target KB Elements
+      const targetKbInput = document.getElementById('icTargetKbInput');
+      const toleranceSelect = document.getElementById('icToleranceSelect');
+      const targetPresetBtns = document.querySelectorAll('.ic-target-preset-btn');
+      const targetSummaryText = document.getElementById('icTargetSummaryText');
+
+      // Quality Slider Elements
+      const qualitySlider = document.getElementById('icQualitySlider');
+      const qualityVal = document.getElementById('icQualityVal');
+      const qualityHint = document.getElementById('icQualityHint');
+      const presetBtns = document.querySelectorAll('.ic-preset-btn');
+
+      // Format Elements
+      const formatCards = document.querySelectorAll('.ic-format-card');
+      const formatSelect = document.getElementById('icFormatSelect');
+      const formatHint = document.getElementById('icFormatHint');
+
+      // Pre-compression queue
+      const itemsContainer = document.getElementById('icItemsContainer');
+      const itemsList = document.getElementById('icItemsList');
+      const queueCount = document.getElementById('icQueueCount');
+      const clearListBtn = document.getElementById('icClearListBtn');
+
+      // Post-compression gallery & ZIP
+      const compressedSection = document.getElementById('icCompressedSection');
+      const compressedCount = document.getElementById('icCompressedCount');
+      const statsSizes = document.getElementById('icStatsSizes');
+      const statsSaved = document.getElementById('icStatsSaved');
+      const thumbGrid = document.getElementById('icThumbGrid');
+      const proceedZipBtn = document.getElementById('icProceedZipBtn');
+      const recompressBtn = document.getElementById('icRecompressBtn');
+
+      // Modal elements
+      const imageModal = document.getElementById('icImageModal');
+      const modalImg = document.getElementById('icModalImg');
+      const modalTitle = document.getElementById('icModalTitle');
+      const modalClose = document.getElementById('icModalClose');
+
+      const codeModal = document.getElementById('icCodeModal');
+      const codeTextarea = document.getElementById('icCodeTextarea');
+      const codeModalClose = document.getElementById('icCodeModalClose');
+      const downloadHtmlBtn = document.getElementById('icDownloadHtmlBtn');
+      const copyCodeBtn = document.getElementById('icCopyCodeBtn');
+      const copyCodeModalBtn = document.getElementById('icCopyCodeModalBtn');
+      const downloadFromModalBtn = document.getElementById('icDownloadFromModalBtn');
+
+      // Format descriptions
+      const formatHints = {
+        'image/jpeg': 'Best for reaching exact target size in KB (.jpg)',
+        'image/webp': 'Highest compression ratio & efficient target sizing (.webp)',
+        'image/png': 'Lossless & crisp graphics (uses resolution scaling for KB target)'
+      };
+
+      // Quality descriptions
+      function getQualityHint(val) {
+        if (val <= 20) return 'Ultra Small Size';
+        if (val <= 50) return 'High Compression';
+        if (val <= 80) return 'Balanced (Recommended)';
+        return 'Maximum Fidelity';
+      }
+
+      // Utility: Format bytes
+      function formatBytes(bytes) {
+        if (!bytes || bytes <= 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
+      }
+
+      // 1. Mode Switching Handling
+      function setMode(mode) {
+        activeMode = mode;
+        if (mode === 'target-kb') {
+          tabTargetKb.classList.add('active');
+          tabQuality.classList.remove('active');
+          targetKbSection.style.display = 'block';
+          qualitySection.style.display = 'none';
+          compressBtn.textContent = 'Compress to ' + (targetKbInput.value || '100') + ' KB';
+        } else {
+          tabQuality.classList.add('active');
+          tabTargetKb.classList.remove('active');
+          targetKbSection.style.display = 'none';
+          qualitySection.style.display = 'block';
+          compressBtn.textContent = 'Compress Images (' + qualitySlider.value + '%)';
+        }
+      }
+
+      tabTargetKb.addEventListener('click', () => setMode('target-kb'));
+      tabQuality.addEventListener('click', () => setMode('quality'));
+
+      // 2. Target KB Input & Presets Handling
+      function updateTargetSummary() {
+        const kb = parseInt(targetKbInput.value, 10) || 100;
+        const isStrict = toleranceSelect.value === 'strict';
+        targetSummaryText.innerHTML = 'Each image will be optimized to ' + (isStrict ? 'strictly stay &le; ' : 'match ') + '<strong>' + kb + ' KB</strong>.';
+        if (activeMode === 'target-kb') {
+          compressBtn.textContent = 'Compress to ' + kb + ' KB';
+        }
+
+        // Update active preset button
+        targetPresetBtns.forEach(btn => {
+          if (parseInt(btn.getAttribute('data-kb'), 10) === kb) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+      }
+
+      targetKbInput.addEventListener('input', updateTargetSummary);
+      toleranceSelect.addEventListener('change', updateTargetSummary);
+
+      targetPresetBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+          const kb = parseInt(this.getAttribute('data-kb'), 10);
+          targetKbInput.value = kb;
+          updateTargetSummary();
+        });
+      });
+
+      // 3. Quality Slider Handling (0 to 100)
+      qualitySlider.addEventListener('input', function () {
+        const val = parseInt(this.value, 10);
+        qualityVal.textContent = val + '%';
+        qualityHint.textContent = getQualityHint(val);
+        if (activeMode === 'quality') {
+          compressBtn.textContent = 'Compress Images (' + val + '%)';
+        }
+
+        presetBtns.forEach(btn => {
+          if (parseInt(btn.getAttribute('data-val'), 10) === val) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+      });
+
+      presetBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+          const val = parseInt(this.getAttribute('data-val'), 10);
+          qualitySlider.value = val;
+          qualityVal.textContent = val + '%';
+          qualityHint.textContent = getQualityHint(val);
+          if (activeMode === 'quality') {
+            compressBtn.textContent = 'Compress Images (' + val + '%)';
+          }
+
+          presetBtns.forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+
+      // 4. Format Selection Handling (Radio cards & Dropdown synchronized)
+      function setOutputFormat(format) {
+        formatCards.forEach(card => {
+          const radio = card.querySelector('input[type="radio"]');
+          if (radio.value === format) {
+            card.classList.add('active');
+            radio.checked = true;
+          } else {
+            card.classList.remove('active');
+            radio.checked = false;
+          }
+        });
+
+        if (formatSelect.value !== format) {
+          formatSelect.value = format;
+        }
+
+        formatHint.textContent = formatHints[format] || '';
+      }
+
+      formatCards.forEach(card => {
+        card.addEventListener('click', function () {
+          const val = this.getAttribute('data-format');
+          setOutputFormat(val);
+        });
+      });
+
+      formatSelect.addEventListener('change', function () {
+        setOutputFormat(this.value);
+      });
+
+      // 5. Drag and Drop & File Browsing
+      browseBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        fileInput.click();
+      });
+
+      dropzone.addEventListener('click', function () {
+        fileInput.click();
+      });
+
+      dropzone.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.add('dragover');
+      });
+
+      dropzone.addEventListener('dragleave', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove('dragover');
+      });
+
+      dropzone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleFiles(e.dataTransfer.files);
+        }
+      });
+
+      fileInput.addEventListener('change', function (e) {
+        if (this.files && this.files.length > 0) {
+          handleFiles(this.files);
+        }
+        this.value = '';
+      });
+
+      function handleFiles(files) {
+        const valid = Array.from(files).filter(f =>
+          f.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|tiff|avif)$/i.test(f.name)
+        );
+
+        if (valid.length === 0) return;
+
+        selectedFiles = [...selectedFiles, ...valid];
+        updateQueueUI();
+      }
+
+      function updateQueueUI() {
+        if (selectedFiles.length === 0) {
+          actionPanel.style.display = 'none';
+          itemsContainer.style.display = 'none';
+          compressedSection.style.display = 'none';
+          return;
+        }
+
+        itemsContainer.style.display = 'block';
+        actionPanel.style.display = 'block';
+        queueCount.textContent = 'Selected Images (' + selectedFiles.length + ')';
+        statusText.textContent = selectedFiles.length + ' image(s) selected. Ready to compress.';
+
+        itemsList.innerHTML = '';
+        selectedFiles.forEach((file, idx) => {
+          const row = document.createElement('div');
+          row.className = 'ic-item-row';
+
+          const left = document.createElement('div');
+          left.className = 'ic-item-left';
+
+          const thumb = document.createElement('img');
+          thumb.className = 'ic-item-thumb';
+          thumb.src = URL.createObjectURL(file);
+          thumb.alt = file.name;
+
+          const meta = document.createElement('div');
+          meta.innerHTML = '<div class="ic-item-name">' + escapeHtml(file.name) + '</div><div class="ic-item-size">' + formatBytes(file.size) + '</div>';
+
+          left.appendChild(thumb);
+          left.appendChild(meta);
+
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'ic-item-remove';
+          removeBtn.innerHTML = '&times;';
+          removeBtn.title = 'Remove image';
+          removeBtn.addEventListener('click', function () {
+            selectedFiles.splice(idx, 1);
+            updateQueueUI();
+          });
+
+          row.appendChild(left);
+          row.appendChild(removeBtn);
+          itemsList.appendChild(row);
+        });
+      }
+
+      clearListBtn.addEventListener('click', function () {
+        selectedFiles = [];
+        compressedResults = [];
+        updateQueueUI();
+        compressedSection.style.display = 'none';
+      });
+
+      // 6. Helper: Render Canvas to Blob Promise
+      function canvasToBlobPromise(canvas, mimeType, quality) {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob(blob => {
+            if (blob) resolve(blob);
+            else reject(new Error('Canvas blob conversion failed'));
+          }, mimeType, quality);
+        });
+      }
+
+      // Helper: Determine Final Filename
+      function getFormattedName(originalName, mimeType) {
+        let baseName = originalName;
+        const lastDot = baseName.lastIndexOf('.');
+        if (lastDot > 0) {
+          baseName = baseName.substring(0, lastDot);
+        }
+        if (mimeType === 'image/jpeg') return baseName + '.jpg';
+        if (mimeType === 'image/webp') return baseName + '.webp';
+        if (mimeType === 'image/png') return baseName + '.png';
+        return originalName;
+      }
+
+      // 7. COMPRESSION ALGORITHM 1: Target Exact File Size in KB
+      async function compressToTargetSize(file, targetKb, mimeType, isStrict) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          const reader = new FileReader();
+
+          reader.onload = e => { img.src = e.target.result; };
+          reader.onerror = reject;
+
+          img.onload = async function () {
+            try {
+              const targetBytes = targetKb * 1024;
+              let curWidth = img.naturalWidth || img.width;
+              let curHeight = img.naturalHeight || img.height;
+
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              if (!ctx) throw new Error('2D context not available');
+
+              let bestBlob = null;
+              let bestDiff = Infinity;
+              let bestQuality = 0.7;
+              let bestWidth = curWidth;
+              let bestHeight = curHeight;
+
+              // Helper to draw image onto canvas with given dimensions
+              function draw(w, h) {
+                canvas.width = w;
+                canvas.height = h;
+                if (mimeType === 'image/jpeg') {
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(0, 0, w, h);
+                } else {
+                  ctx.clearRect(0, 0, w, h);
+                }
+                ctx.drawImage(img, 0, 0, w, h);
+              }
+
+              // Lossless PNG Handling (Quality parameter is ignored by browser canvas, so we scale resolution)
+              if (mimeType === 'image/png') {
+                let minScale = 0.05;
+                let maxScale = 1.0;
+
+                for (let iter = 0; iter < 7; iter++) {
+                  const midScale = (minScale + maxScale) / 2;
+                  const testW = Math.max(16, Math.round(curWidth * midScale));
+                  const testH = Math.max(16, Math.round(curHeight * midScale));
+                  draw(testW, testH);
+
+                  const blob = await canvasToBlobPromise(canvas, mimeType, 0.92);
+                  const diff = Math.abs(blob.size - targetBytes);
+
+                  if (isStrict) {
+                    if (blob.size <= targetBytes) {
+                      bestBlob = blob;
+                      bestWidth = testW;
+                      bestHeight = testH;
+                      minScale = midScale; // try to get closer without exceeding
+                    } else {
+                      maxScale = midScale;
+                    }
+                  } else {
+                    if (diff < bestDiff) {
+                      bestDiff = diff;
+                      bestBlob = blob;
+                      bestWidth = testW;
+                      bestHeight = testH;
+                    }
+                    if (blob.size > targetBytes) {
+                      maxScale = midScale;
+                    } else {
+                      minScale = midScale;
+                    }
+                  }
+                }
+              } else {
+                // JPEG & WebP Handling (Binary search on quality + adaptive resolution scale if needed)
+                let currentScale = 1.0;
+
+                // We allow up to 4 dimension downscale attempts if photo resolution is too massive to fit in target KB
+                for (let scalePass = 0; scalePass < 4; scalePass++) {
+                  const w = Math.max(16, Math.round(curWidth * currentScale));
+                  const h = Math.max(16, Math.round(curHeight * currentScale));
+                  draw(w, h);
+
+                  let qMin = 0.01;
+                  let qMax = 0.98;
+                  let minObservedSize = Infinity;
+
+                  // 7 iterations of binary search on quality
+                  for (let i = 0; i < 7; i++) {
+                    const qMid = (qMin + qMax) / 2;
+                    const blob = await canvasToBlobPromise(canvas, mimeType, qMid);
+
+                    if (blob.size < minObservedSize) minObservedSize = blob.size;
+
+                    const diff = Math.abs(blob.size - targetBytes);
+
+                    if (isStrict) {
+                      if (blob.size <= targetBytes) {
+                        if (!bestBlob || blob.size > bestBlob.size) {
+                          bestBlob = blob;
+                          bestDiff = targetBytes - blob.size;
+                          bestQuality = qMid;
+                          bestWidth = w;
+                          bestHeight = h;
+                        }
+                        qMin = qMid; // try to find better quality under limit
+                      } else {
+                        qMax = qMid; // too big, lower quality
+                      }
+                    } else {
+                      if (diff < bestDiff) {
+                        bestDiff = diff;
+                        bestBlob = blob;
+                        bestQuality = qMid;
+                        bestWidth = w;
+                        bestHeight = h;
+                      }
+
+                      if (diff <= targetBytes * 0.02) {
+                        // Already within 2% of user target!
+                        break;
+                      }
+
+                      if (blob.size > targetBytes) {
+                        qMax = qMid;
+                      } else {
+                        qMin = qMid;
+                      }
+                    }
+                  }
+
+                  // If we found a valid blob matching our strict condition or within 8% of target, stop
+                  if (bestBlob && (!isStrict || bestBlob.size <= targetBytes)) {
+                    if (isStrict && bestBlob.size >= targetBytes * 0.85) break;
+                    if (!isStrict && bestDiff <= targetBytes * 0.08) break;
+                  }
+
+                  // If even at minimum quality the blob is STILL larger than targetBytes,
+                  // downscale image dimensions proportionally
+                  if (minObservedSize > targetBytes) {
+                    const scaleFactor = Math.min(0.85, Math.sqrt(targetBytes / minObservedSize) * 0.95);
+                    currentScale *= scaleFactor;
+                  } else {
+                    break;
+                  }
+                }
+              }
+
+              // Fallback if no candidate met strict condition
+              if (!bestBlob) {
+                draw(Math.max(16, Math.round(curWidth * 0.5)), Math.max(16, Math.round(curHeight * 0.5)));
+                bestBlob = await canvasToBlobPromise(canvas, mimeType, 0.1);
+                bestWidth = canvas.width;
+                bestHeight = canvas.height;
+              }
+
+              const achievedKb = (bestBlob.size / 1024).toFixed(1);
+              const targetDiffPercent = (((bestBlob.size - targetBytes) / targetBytes) * 100).toFixed(1);
+
+              resolve({
+                originalFile: file,
+                blob: bestBlob,
+                name: getFormattedName(file.name, mimeType),
+                originalSize: file.size,
+                compressedSize: bestBlob.size,
+                url: URL.createObjectURL(bestBlob),
+                width: bestWidth,
+                height: bestHeight,
+                mode: 'target-kb',
+                targetKb: targetKb,
+                achievedKb: achievedKb,
+                diffPercent: targetDiffPercent
+              });
+            } catch (err) {
+              reject(err);
+            }
+          };
+
+          img.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // 8. COMPRESSION ALGORITHM 2: Standard Quality Slider (0 to 100)
+      function compressImageByQuality(file, options) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          const reader = new FileReader();
+
+          reader.onload = e => { img.src = e.target.result; };
+          reader.onerror = reject;
+
+          img.onload = function () {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth || img.width;
+              canvas.height = img.naturalHeight || img.height;
+
+              const ctx = canvas.getContext('2d');
+              if (!ctx) throw new Error('Canvas 2D context not available');
+
+              if (options.mimeType === 'image/jpeg') {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+              }
+
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+              const qualityFloat = Math.max(0.01, Math.min(1.0, options.quality / 100));
+
+              canvas.toBlob(blob => {
+                if (!blob) throw new Error('Blob compression failed');
+
+                resolve({
+                  originalFile: file,
+                  blob: blob,
+                  name: getFormattedName(file.name, options.mimeType),
+                  originalSize: file.size,
+                  compressedSize: blob.size,
+                  url: URL.createObjectURL(blob),
+                  width: canvas.width,
+                  height: canvas.height,
+                  mode: 'quality',
+                  quality: options.quality
+                });
+              }, options.mimeType, qualityFloat);
+            } catch (err) {
+              reject(err);
+            }
+          };
+
+          img.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      // 9. Compress Button Event Handler
+      compressBtn.addEventListener('click', async function () {
+        if (selectedFiles.length === 0 || isCompressing) return;
+
+        isCompressing = true;
+        compressBtn.disabled = true;
+        progressBarContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        compressedSection.style.display = 'none';
+
+        const activeRadio = document.querySelector('input[name="icFormat"]:checked');
+        const selectedMime = activeRadio ? activeRadio.value : 'image/jpeg';
+        const targetKbVal = parseInt(targetKbInput.value, 10) || 100;
+        const isStrict = toleranceSelect.value === 'strict';
+        const qualityNumber = parseInt(qualitySlider.value, 10);
+
+        compressedResults = [];
+
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const file = selectedFiles[i];
+          statusText.textContent = 'Compressing (' + (i + 1) + '/' + selectedFiles.length + '): ' + file.name + '...';
+          const pct = Math.round(((i + 1) / selectedFiles.length) * 100);
+          progressBar.style.width = pct + '%';
+
+          try {
+            let res;
+            if (activeMode === 'target-kb') {
+              res = await compressToTargetSize(file, targetKbVal, selectedMime, isStrict);
+            } else {
+              res = await compressImageByQuality(file, {
+                mimeType: selectedMime,
+                quality: qualityNumber
+              });
+            }
+            compressedResults.push(res);
+          } catch (e) {
+            console.error('Error compressing file ' + file.name, e);
+          }
+        }
+
+        isCompressing = false;
+        compressBtn.disabled = false;
+        statusText.textContent = 'Compression complete! ' + compressedResults.length + ' image(s) processed. Preview thumbnails below.';
+
+        setTimeout(() => {
+          progressBarContainer.style.display = 'none';
+        }, 800);
+
+        renderThumbnailsUI();
+      });
+
+      // 10. Display Thumbnail Previews After Compression is Complete (Before ZIP)
+      function renderThumbnailsUI() {
+        if (compressedResults.length === 0) return;
+
+        compressedSection.style.display = 'block';
+        compressedCount.textContent = compressedResults.length;
+
+        let totalOrig = 0;
+        let totalComp = 0;
+
+        thumbGrid.innerHTML = '';
+
+        compressedResults.forEach(item => {
+          totalOrig += item.originalSize;
+          totalComp += item.compressedSize;
+
+          const savedPercent = Math.max(0, Math.round(((item.originalSize - item.compressedSize) / item.originalSize) * 100));
+
+          const card = document.createElement('div');
+          card.className = 'ic-thumb-card';
+
+          let targetRowHtml = '';
+          if (item.mode === 'target-kb') {
+            const actualKb = (item.compressedSize / 1024).toFixed(1);
+            const targetKb = item.targetKb;
+            const diffPct = parseFloat(item.diffPercent);
+            const matchStatusText = Math.abs(diffPct) <= 5 ? 'Exact Match!' : (diffPct < 0 ? `${Math.abs(diffPct)}% under` : `+${diffPct}%`);
+
+            targetRowHtml = `
+              <div class="ic-thumb-target-row">
+                <span>Target: <strong>${targetKb} KB</strong></span>
+                <span class="ic-target-match-tag">Result: ${actualKb} KB (${matchStatusText})</span>
+              </div>
+            `;
+          }
+
+          card.innerHTML = `
+            <div class="ic-thumb-img-wrapper" title="Click to view full size">
+              <img src="${item.url}" alt="${escapeHtml(item.name)}" class="ic-thumb-img">
+              <div class="ic-thumb-zoom-overlay">Click to Enlarge</div>
+            </div>
+            <div class="ic-thumb-details">
+              <span class="ic-thumb-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+              <div class="ic-thumb-metrics">
+                <span class="ic-size-orig">Orig: ${formatBytes(item.originalSize)}</span>
+                <span class="ic-size-comp">Comp: ${formatBytes(item.compressedSize)}</span>
+              </div>
+              ${targetRowHtml}
+            </div>
+            <div class="ic-thumb-footer">
+              <span class="ic-badge-saving">${savedPercent > 0 ? '-' + savedPercent + '% Saved' : 'Optimized'}</span>
+              <a href="${item.url}" download="${escapeHtml(item.name)}" class="ic-btn-download-single">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                </svg>
+                Download
+              </a>
+            </div>
+          `;
+
+          // Zoom image modal click
+          const imgWrapper = card.querySelector('.ic-thumb-img-wrapper');
+          imgWrapper.addEventListener('click', function () {
+            modalImg.src = item.url;
+            modalTitle.textContent = item.name + ' (' + formatBytes(item.compressedSize) + ')';
+            imageModal.style.display = 'flex';
+          });
+
+          thumbGrid.appendChild(card);
+        });
+
+        // Update overall stats
+        statsSizes.textContent = formatBytes(totalOrig) + ' \u2192 ' + formatBytes(totalComp);
+        const overallSaved = totalOrig > 0 ? Math.max(0, Math.round(((totalOrig - totalComp) / totalOrig) * 100)) : 0;
+        statsSaved.textContent = 'Saved ' + overallSaved + '% (' + formatBytes(Math.max(0, totalOrig - totalComp)) + ')';
+
+        // Scroll smoothly to thumbnails
+        compressedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      // Re-compress button
+      recompressBtn.addEventListener('click', function () {
+        document.getElementById('icControlsPanel').scrollIntoView({ behavior: 'smooth' });
+      });
+
+      // 11. Proceed with ZIP Creation & Download
+      proceedZipBtn.addEventListener('click', async function () {
+        if (compressedResults.length === 0 || isZipping) return;
+
+        if (typeof JSZip === 'undefined') {
+          alert('JSZip library is still loading. Please check your internet connection and try again.');
+          return;
+        }
+
+        isZipping = true;
+        proceedZipBtn.disabled = true;
+        const origText = proceedZipBtn.innerHTML;
+        proceedZipBtn.innerHTML = 'Packaging ZIP Archive...';
+
+        try {
+          const zip = new JSZip();
+          compressedResults.forEach(item => {
+            zip.file(item.name, item.blob);
+          });
+
+          const zipBlob = await zip.generateAsync({
+            type: 'blob',
+            compression: 'DEFLATE',
+            compressionOptions: { level: 6 }
+          });
+
+          const zipUrl = URL.createObjectURL(zipBlob);
+          const a = document.createElement('a');
+          a.href = zipUrl;
+          a.download = 'compressed_images_' + Date.now() + '.zip';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+
+          setTimeout(() => URL.revokeObjectURL(zipUrl), 2000);
+        } catch (err) {
+          console.error('Failed to create ZIP:', err);
+          alert('Error generating ZIP archive: ' + (err.message || 'Unknown error'));
+        } finally {
+          isZipping = false;
+          proceedZipBtn.disabled = false;
+          proceedZipBtn.innerHTML = origText;
+        }
+      });
+
+      // Modal Closures
+      modalClose.addEventListener('click', () => { imageModal.style.display = 'none'; });
+      imageModal.addEventListener('click', (e) => { if (e.target === imageModal) imageModal.style.display = 'none'; });
+
+      codeModalClose.addEventListener('click', () => { codeModal.style.display = 'none'; });
+      codeModal.addEventListener('click', (e) => { if (e.target === codeModal) codeModal.style.display = 'none'; });
+
+      // 12. Download / Copy Single-File index.html
+      function getStandaloneHtml() {
+        return '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+      }
+
+      function downloadSingleHtmlFile() {
+        const fullHtml = getStandaloneHtml();
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'index.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }
+
+      downloadHtmlBtn.addEventListener('click', downloadSingleHtmlFile);
+      downloadFromModalBtn.addEventListener('click', downloadSingleHtmlFile);
+
+      copyCodeBtn.addEventListener('click', function () {
+        const fullHtml = getStandaloneHtml();
+        codeTextarea.value = fullHtml;
+        codeModal.style.display = 'flex';
+      });
+
+      copyCodeModalBtn.addEventListener('click', async function () {
+        try {
+          await navigator.clipboard.writeText(codeTextarea.value);
+          this.textContent = 'Copied to Clipboard!';
+          setTimeout(() => { this.textContent = 'Copy to Clipboard'; }, 2000);
+        } catch (e) {
+          codeTextarea.select();
+          document.execCommand('copy');
+          this.textContent = 'Copied!';
+          setTimeout(() => { this.textContent = 'Copy to Clipboard'; }, 2000);
+        }
+      });
+
+      function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      // Initial state sync
+      updateTargetSummary();
+
+    })();
+  </script>
+
+
+</body></html>
